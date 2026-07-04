@@ -25,6 +25,6 @@
 $string['pluginname'] = 'Moodle Custom Login Message';
 $string['accountsuspended'] = 'Your account has been suspended. Please contact the site administrator.';
 $string['suspensionmessage'] = 'Suspended account message';
-$string['suspensionmessage_desc'] = 'Custom multilingual HTML message shown when a suspended user enters valid credentials. Leave empty to use the default message.';
+$string['suspensionmessage_desc'] = 'Custom multilingual HTML message shown when a suspended user attempts to log in. Leave empty to use the default message.';
 $string['enablemultilang'] = 'Enable Multi-language content filter';
 $string['enablemultilang_desc'] = 'Enable Multi-language content in Site administration → Plugins → Filters → Manage filters.';

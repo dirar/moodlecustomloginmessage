@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_moodlecustomloginmessage';
-$plugin->version = 2026050900;
+$plugin->version = 2026070400;
 $plugin->release = '1.0.0';
 $plugin->requires = 2023100900;
 $plugin->maturity = MATURITY_STABLE;

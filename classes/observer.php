@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Hook handlers for local_moodlecustomloginmessage.
+ * Event observer for local_moodlecustomloginmessage.
  *
  * @package    local_moodlecustomloginmessage
  * @copyright  2026
@@ -24,30 +24,33 @@
 
 namespace local_moodlecustomloginmessage;
 
-use core_auth\hook\user_authenticated;
-
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Hook class.
+ * Observer class.
  */
-class hooks {
+class observer {
     /**
-     * Prevent suspended users from logging in after auth succeeds.
+     * Show a custom message when a suspended user's login attempt is rejected.
      *
-     * @param user_authenticated $hook
+     * Moodle rejects suspended accounts in authenticate_user_login() before the
+     * password is even checked, so this must react to the login failure event
+     * rather than any "successful authentication" hook.
+     *
+     * @param \core\event\user_login_failed $event
      * @return void
      */
-    public static function after_user_authenticated(user_authenticated $hook): void {
+    public static function user_login_failed(\core\event\user_login_failed $event): void {
         global $DB, $SESSION;
 
-        $user = $hook->user;
-        if (empty($user) || empty($user->id) || empty($user->suspended)) {
+        if ((int) ($event->other['reason'] ?? null) !== AUTH_LOGIN_SUSPENDED) {
             return;
         }
 
-        // Kill existing sessions for the suspended user.
-        $DB->delete_records('sessions', ['userid' => $user->id]);
+        if (!empty($event->userid)) {
+            // Kill any existing sessions for the suspended user.
+            $DB->delete_records('sessions', ['userid' => $event->userid]);
+        }
 
         $message = get_config('local_moodlecustomloginmessage', 'suspensionmessage');
         if (empty($message)) {

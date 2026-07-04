@@ -4,7 +4,11 @@ This local plugin overrides default login feedback for suspended users.
 
 ## Purpose
 
-When credentials are correct but the account is suspended, the plugin:
+Moodle rejects suspended accounts in `authenticate_user_login()` before the
+password is even checked, so the custom message is shown for any login
+attempt against a suspended account, regardless of the password entered.
+The plugin observes the `\core\event\user_login_failed` event and, when the
+failure reason is `AUTH_LOGIN_SUSPENDED`:
 - kills active sessions for that user,
 - stores a custom message in `$SESSION->loginerrormsg`,
 - redirects back to `/login/index.php`.
@@ -44,16 +48,20 @@ When credentials are correct but the account is suspended, the plugin:
 ## Testing steps
 
 1. Create a test user and set it to suspended.
-2. Attempt login with valid credentials.
+2. Attempt login with either the correct or an incorrect password.
 3. Confirm redirect to `/login/index.php`.
-4. Confirm `$SESSION->loginerrormsg` displays the configured message.
+4. Confirm `$SESSION->loginerrormsg` displays the configured message (instead
+   of the generic "Invalid login" message).
 5. Confirm user sessions are removed from active sessions.
 
 ## Troubleshooting
 
 - Message not translated: enable Multi-language content filter.
 - Default message shown: ensure plugin setting is non-empty.
-- Behavior unchanged: purge caches and confirm plugin installed as `local_moodlecustomloginmessage`.
+- Generic "Invalid login" message still shown instead of the custom one:
+  purge caches (Site administration → Development → Purge caches) so Moodle
+  picks up the event observer registered in `db/events.php`, and confirm the
+  plugin installed as `local_moodlecustomloginmessage`.
 
 ## Screenshot descriptions
 

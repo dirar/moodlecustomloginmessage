@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Hook definitions for local_moodlecustomloginmessage.
+ * Event observer definitions for local_moodlecustomloginmessage.
  *
  * @package    local_moodlecustomloginmessage
  * @copyright  2026
@@ -24,9 +24,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$hooks = [
-    'auth:user_authenticated' => [
-        'callback' => '\\local_moodlecustomloginmessage\\hooks::after_user_authenticated',
-        'priority' => 100,
+$observers = [
+    [
+        'eventname' => '\core\event\user_login_failed',
+        'callback' => '\local_moodlecustomloginmessage\observer::user_login_failed',
     ],
 ];
