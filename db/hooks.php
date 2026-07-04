@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for local_moodlecustomloginmessage.
+ * Hook definitions for local_moodlecustomloginmessage.
  *
  * @package    local_moodlecustomloginmessage
  * @copyright  2026
@@ -24,9 +24,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_moodlecustomloginmessage';
-$plugin->version = 2026070401;
-$plugin->release = '1.0.0';
-$plugin->requires = 2023100900;
-$plugin->maturity = MATURITY_STABLE;
-$plugin->supported = [43, 45];
+$callbacks = [
+    [
+        'hook' => \core\hook\output\before_standard_top_of_body_html_generation::class,
+        'callback' => '\local_moodlecustomloginmessage\hook_callbacks::before_standard_top_of_body_html',
+    ],
+];

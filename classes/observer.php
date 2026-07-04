@@ -31,6 +31,14 @@ defined('MOODLE_INTERNAL') || die();
  */
 class observer {
     /**
+     * Marker prepended to $SESSION->loginerrormsg so hook_callbacks::before_standard_top_of_body_html()
+     * can identify and render *only* our own message as HTML, leaving every other
+     * login error/info message (which may embed unsanitised user input, e.g. a
+     * submitted username) safely escaped as plain text.
+     */
+    const HTML_MARKER = "\x02LCM-HTML\x02";
+
+    /**
      * Show a custom message when a suspended user's login attempt is rejected.
      *
      * Moodle rejects suspended accounts in authenticate_user_login() before the
@@ -41,7 +49,7 @@ class observer {
      * @return void
      */
     public static function user_login_failed(\core\event\user_login_failed $event): void {
-        global $DB;
+        global $DB, $SESSION;
 
         if ((int) ($event->other['reason'] ?? null) !== AUTH_LOGIN_SUSPENDED) {
             return;
@@ -57,9 +65,11 @@ class observer {
             $message = get_string('accountsuspended', 'local_moodlecustomloginmessage');
         }
 
-        // The login page escapes $SESSION->loginerrormsg as plain text, but session
-        // notifications are rendered as raw HTML, so multilang markup displays correctly.
-        \core\notification::error(format_text($message, FORMAT_HTML));
+        // The login form template (core and theme_boost_union alike) renders the error
+        // field as escaped plain text, which is what keeps it positioned right above the
+        // username field. We keep that position and instead unescape just this message
+        // client-side, via the marker handled in hook_callbacks::before_standard_top_of_body_html().
+        $SESSION->loginerrormsg = self::HTML_MARKER . format_text($message, FORMAT_HTML);
 
         redirect(new \moodle_url('/login/index.php'));
     }

@@ -10,15 +10,26 @@ attempt against a suspended account, regardless of the password entered.
 The plugin observes the `\core\event\user_login_failed` event and, when the
 failure reason is `AUTH_LOGIN_SUSPENDED`:
 - kills active sessions for that user,
-- adds the custom message via `\core\notification::error()`,
+- stores the custom message in `$SESSION->loginerrormsg`, prefixed with a
+  private marker (`observer::HTML_MARKER`),
 - redirects back to `/login/index.php`.
 
-The message is shown through Moodle's session notification system rather
-than the login form's own error field, because the login form template
-HTML-escapes its error text (it's only ever meant to hold plain text), while
-notifications are rendered as raw HTML - required for multilang markup like
-`<span lang="ar" class="multilang">...</span>` to actually render instead of
-showing as literal tags.
+`$SESSION->loginerrormsg` feeds the login form's error field, which is what
+keeps the message positioned right above the username field - but both core
+and the active theme's `loginform.mustache` render that field as escaped
+plain text (`{{error}}`), since it's normally only ever a plain-text string
+(e.g. "Invalid login, please try again"). Rendering multilang HTML there
+requires unescaping *only our own message*, without weakening the escaping
+for any other login message - some of which embed unsanitised user input
+(e.g. a submitted username) and must stay escaped to avoid XSS.
+
+To do that safely, `classes/hook_callbacks.php` hooks
+`\core\hook\output\before_standard_top_of_body_html_generation` (registered
+in `db/hooks.php`) to inject a small script, active only when
+`$PAGE->pagelayout === 'login'`. It looks at the rendered error elements and,
+only if their text starts with our marker, replaces their `innerHTML` with
+the (unescaped) remainder - re-parsing our own HTML content in place, while
+leaving any other message (which won't have the marker) untouched.
 
 ## Compatibility
 
@@ -49,8 +60,11 @@ showing as literal tags.
 
 - Uses Moodle APIs only.
 - Includes `defined('MOODLE_INTERNAL') || die();` checks.
-- Uses `format_text($message, FORMAT_HTML)` before passing content to
-  `\core\notification::error()` for rendering.
+- Uses `format_text($message, FORMAT_HTML)` (which sanitises the HTML) before
+  storing content in `$SESSION->loginerrormsg`.
+- The client-side unescape only ever touches text carrying our own private
+  marker, so other login messages (including ones built from raw user input,
+  like a submitted username) remain safely HTML-escaped.
 - Invalidates sessions for suspended users.
 
 ## Testing steps
@@ -58,17 +72,23 @@ showing as literal tags.
 1. Create a test user and set it to suspended.
 2. Attempt login with either the correct or an incorrect password.
 3. Confirm redirect to `/login/index.php`.
-4. Confirm the configured message displays as a rendered (not escaped) HTML
-   notification banner, instead of the generic "Invalid login" message.
+4. Confirm the configured message displays as rendered HTML (not escaped
+   tags), positioned right above the username field, instead of the generic
+   "Invalid login" message.
 5. Confirm user sessions are removed from active sessions.
 
 ## Troubleshooting
 
 - Message not translated: enable Multi-language content filter.
 - Default message shown: ensure plugin setting is non-empty.
-- Message shows with literal HTML tags instead of being rendered: make sure
-  the observer uses `\core\notification::error()` rather than
-  `$SESSION->loginerrormsg` (the login form template escapes that field).
+- Message shows with literal HTML tags instead of being rendered: purge
+  caches so Moodle picks up `db/hooks.php` (hook registrations are cached
+  separately from event observers), and confirm the browser actually loaded
+  the injected script (check dev tools console/network for errors).
+- Message appears in the wrong position (e.g. floating at the top of the
+  page): confirm the observer sets `$SESSION->loginerrormsg` rather than
+  using `\core\notification`, which renders as a floating toast instead of
+  inline in the form.
 - Generic "Invalid login" message still shown instead of the custom one:
   purge caches (Site administration → Development → Purge caches) so Moodle
   picks up the event observer registered in `db/events.php`, and confirm the
