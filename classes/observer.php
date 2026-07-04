@@ -43,22 +43,32 @@ class observer {
     public static function user_login_failed(\core\event\user_login_failed $event): void {
         global $DB, $SESSION;
 
-        if ((int) ($event->other['reason'] ?? null) !== AUTH_LOGIN_SUSPENDED) {
+        $reason = $event->other['reason'] ?? null;
+        error_log('[moodlecustomloginmessage] observer fired, reason=' . var_export($reason, true));
+
+        if ((int) $reason !== AUTH_LOGIN_SUSPENDED) {
             return;
         }
 
-        if (!empty($event->userid)) {
-            // Kill any existing sessions for the suspended user.
-            $DB->delete_records('sessions', ['userid' => $event->userid]);
-        }
+        try {
+            if (!empty($event->userid)) {
+                // Kill any existing sessions for the suspended user.
+                $DB->delete_records('sessions', ['userid' => $event->userid]);
+            }
 
-        $message = get_config('local_moodlecustomloginmessage', 'suspensionmessage');
-        if (empty($message)) {
-            $message = get_string('accountsuspended', 'local_moodlecustomloginmessage');
-        }
+            $message = get_config('local_moodlecustomloginmessage', 'suspensionmessage');
+            if (empty($message)) {
+                $message = get_string('accountsuspended', 'local_moodlecustomloginmessage');
+            }
 
-        // Ensure multilang HTML content is processed safely by Moodle formatting APIs.
-        $SESSION->loginerrormsg = format_text($message, FORMAT_HTML);
+            // Ensure multilang HTML content is processed safely by Moodle formatting APIs.
+            $SESSION->loginerrormsg = format_text($message, FORMAT_HTML);
+
+            error_log('[moodlecustomloginmessage] about to redirect with custom message set');
+        } catch (\Throwable $e) {
+            error_log('[moodlecustomloginmessage] exception before redirect: ' . $e->getMessage());
+            throw $e;
+        }
 
         redirect(new \moodle_url('/login/index.php'));
     }
