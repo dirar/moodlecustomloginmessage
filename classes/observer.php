@@ -41,7 +41,7 @@ class observer {
      * @return void
      */
     public static function user_login_failed(\core\event\user_login_failed $event): void {
-        global $DB, $SESSION;
+        global $DB;
 
         if ((int) ($event->other['reason'] ?? null) !== AUTH_LOGIN_SUSPENDED) {
             return;
@@ -57,8 +57,9 @@ class observer {
             $message = get_string('accountsuspended', 'local_moodlecustomloginmessage');
         }
 
-        // Ensure multilang HTML content is processed safely by Moodle formatting APIs.
-        $SESSION->loginerrormsg = format_text($message, FORMAT_HTML);
+        // The login page escapes $SESSION->loginerrormsg as plain text, but session
+        // notifications are rendered as raw HTML, so multilang markup displays correctly.
+        \core\notification::error(format_text($message, FORMAT_HTML));
 
         redirect(new \moodle_url('/login/index.php'));
     }
